@@ -1,81 +1,14 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useState } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
-import {
-  TreePine,
-  Smartphone,
-  HardHat,
-  ShieldCheck,
-  ArrowRight,
-  Lock,
-  User,
-  KeyRound,
-  CheckCircle2,
-  Building2,
-  Sparkles
-} from "lucide-react";
-
-type RoleType = "citizen" | "field" | "supervisor";
+import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
+import { TreePine, ArrowRight, ShieldCheck, HardHat, Smartphone, Sparkles } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [selectedRole, setSelectedRole] = useState<RoleType>("citizen");
-  const [identifier, setIdentifier] = useState("9826012345");
-  const [password, setPassword] = useState("••••••••");
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-
-  const handleRoleSelect = (role: RoleType) => {
-    setSelectedRole(role);
-    setErrorMsg("");
-    if (role === "citizen") {
-      setIdentifier("9826012345");
-      setPassword("123456");
-    } else if (role === "field") {
-      setIdentifier("squad12@raipur.cg.gov.in");
-      setPassword("1212");
-    } else {
-      setIdentifier("officer.sharma@raipur.cg.gov.in");
-      setPassword("admin123");
-    }
-  };
-
-  const handleLogin = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!identifier.trim()) {
-      setErrorMsg("Please enter your identifier / credentials");
-      return;
-    }
-
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      if (selectedRole === "citizen") {
-        router.push("/citizen");
-      } else if (selectedRole === "field") {
-        router.push("/field");
-      } else {
-        router.push("/supervisor");
-      }
-    }, 400);
-  };
-
-  const handleQuickLogin = (role: RoleType) => {
-    handleRoleSelect(role);
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      if (role === "citizen") {
-        router.push("/citizen");
-      } else if (role === "field") {
-        router.push("/field");
-      } else {
-        router.push("/supervisor");
-      }
-    }, 200);
-  };
+  const { user } = useUser();
 
   return (
     <div className="min-h-screen bg-[#f3f7f1] flex flex-col justify-between font-sans text-[#1c241c]">
@@ -98,171 +31,122 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-[#4e644e] bg-[#f0f6ed] px-3 py-1.5 rounded-xl border border-[#d8e3d2]">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Swachhata Helpline: 1100</span>
+        <div className="flex items-center gap-3">
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
+          <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-[#4e644e] bg-[#f0f6ed] px-3 py-1.5 rounded-xl border border-[#d8e3d2]">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Swachhata Helpline: 1100</span>
+          </div>
         </div>
       </header>
 
-      {/* Main Login Form Container */}
+      {/* Main Container */}
       <main className="flex-1 flex items-center justify-center p-4 md:p-8">
-        <div className="w-full max-w-md bg-white rounded-3xl border border-[#d8e3d2] shadow-xl p-6 md:p-8 flex flex-col gap-6">
-          {/* Header */}
-          <div className="text-center flex flex-col items-center gap-1.5">
-            <div className="w-12 h-12 rounded-2xl bg-[#e8f5e9] text-[#204e37] flex items-center justify-center shadow-2xs mb-1">
-              {selectedRole === "citizen" && <Smartphone size={24} />}
-              {selectedRole === "field" && <HardHat size={24} />}
-              {selectedRole === "supervisor" && <Building2 size={24} />}
+        <div className="w-full max-w-md bg-white rounded-3xl border border-[#d8e3d2] shadow-xl p-8 flex flex-col gap-6 text-center">
+          {/* Emblem & Title */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-14 h-14 rounded-2xl bg-[#e8f5e9] text-[#204e37] flex items-center justify-center shadow-xs">
+              <TreePine size={30} />
             </div>
-            <h1 className="text-2xl font-black text-[#143826] tracking-tight">Single Sign-On</h1>
-            <p className="text-xs text-[#556955] font-medium">
-              Select your role to access WasteLoop CG
+            <h1 className="text-2xl font-black text-[#143826] tracking-tight">WasteLoop CG</h1>
+            <p className="text-xs text-[#556955] font-medium max-w-xs">
+              Swachh Chhattisgarh Mission · Sign in with Google to report issues, track field squads, or manage city wards
             </p>
           </div>
 
-          {/* 3 Role Selection Tabs */}
-          <div className="grid grid-cols-3 gap-1.5 bg-[#f0f5ee] p-1.5 rounded-2xl border border-[#dce6d8]">
-            <button
-              type="button"
-              onClick={() => handleRoleSelect("citizen")}
-              className={`py-2 px-1 rounded-xl text-xs font-bold transition flex flex-col items-center gap-1 ${
-                selectedRole === "citizen"
-                  ? "bg-white text-[#204e37] shadow-sm"
-                  : "text-[#5e735e] hover:text-[#204e37]"
-              }`}
-            >
-              <Smartphone size={16} />
-              <span>Citizen</span>
-            </button>
+          {/* Signed Out View - Single Google Sign In Button */}
+          <SignedOut>
+            <div className="flex flex-col gap-3">
+              <SignInButton mode="modal" forceRedirectUrl="/citizen">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center gap-3 bg-white hover:bg-neutral-50 text-[#1f2937] border-2 border-[#d1d5db] font-bold py-3.5 px-6 rounded-2xl shadow-sm transition-all hover:shadow-md hover:border-[#9ca3af] active:scale-[0.99] text-sm cursor-pointer"
+                >
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  <span>Continue with Google</span>
+                </button>
+              </SignInButton>
 
-            <button
-              type="button"
-              onClick={() => handleRoleSelect("field")}
-              className={`py-2 px-1 rounded-xl text-xs font-bold transition flex flex-col items-center gap-1 ${
-                selectedRole === "field"
-                  ? "bg-white text-[#204e37] shadow-sm"
-                  : "text-[#5e735e] hover:text-[#204e37]"
-              }`}
-            >
-              <HardHat size={16} />
-              <span>Field Squad</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleRoleSelect("supervisor")}
-              className={`py-2 px-1 rounded-xl text-xs font-bold transition flex flex-col items-center gap-1 ${
-                selectedRole === "supervisor"
-                  ? "bg-white text-[#204e37] shadow-sm"
-                  : "text-[#5e735e] hover:text-[#204e37]"
-              }`}
-            >
-              <ShieldCheck size={16} />
-              <span>Officer</span>
-            </button>
-          </div>
-
-          {/* Login Form */}
-          <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            {errorMsg && (
-              <div className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-2 rounded-xl">
-                {errorMsg}
-              </div>
-            )}
-
-            {/* Identifier input */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[#2a3c2a] flex items-center justify-between">
-                <span>
-                  {selectedRole === "citizen" && "Mobile Number / Citizen ID"}
-                  {selectedRole === "field" && "Squad ID / Staff Number"}
-                  {selectedRole === "supervisor" && "Government Officer Email"}
-                </span>
-                <span className="text-[10px] text-[#205136] font-semibold">Verified</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full text-xs font-medium pl-9 pr-3 py-3 rounded-xl border border-[#d6dfce] bg-[#fbfdfa] focus:outline-none focus:ring-2 focus:ring-[#204e37] focus:bg-white transition"
-                  placeholder={
-                    selectedRole === "citizen"
-                      ? "Enter 10-digit mobile number"
-                      : selectedRole === "field"
-                      ? "e.g. squad12@raipur.cg.gov.in"
-                      : "e.g. officer@raipur.cg.gov.in"
-                  }
-                />
-                <User size={15} className="absolute left-3 top-3.5 text-[#6c826c]" />
-              </div>
+              <p className="text-[11px] text-[#6b7280]">
+                Powered by Clerk Auth · Fast 1-tap sign in
+              </p>
             </div>
+          </SignedOut>
 
-            {/* Password / OTP input */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[#2a3c2a] flex items-center justify-between">
-                <span>{selectedRole === "citizen" ? "One-Time Password (OTP)" : "Security Password / PIN"}</span>
-                <span className="text-[10px] text-[#5b715b]">Raipur SSO</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full text-xs font-medium pl-9 pr-3 py-3 rounded-xl border border-[#d6dfce] bg-[#fbfdfa] focus:outline-none focus:ring-2 focus:ring-[#204e37] focus:bg-white transition"
-                  placeholder="Enter credential"
-                />
-                <KeyRound size={15} className="absolute left-3 top-3.5 text-[#6c826c]" />
+          {/* Signed In View */}
+          <SignedIn>
+            <div className="flex flex-col items-center gap-4 bg-[#f0f6ed] p-5 rounded-2xl border border-[#d6dfce]">
+              <div className="flex items-center gap-3">
+                <UserButton />
+                <div className="text-left">
+                  <div className="text-sm font-bold text-[#143826]">
+                    {user?.fullName || user?.primaryEmailAddress?.emailAddress || "Welcome back"}
+                  </div>
+                  <div className="text-[11px] text-[#4b634b]">
+                    {user?.primaryEmailAddress?.emailAddress}
+                  </div>
+                </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => router.push("/citizen")}
+                className="w-full bg-[#204e37] hover:bg-[#183d2b] text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Continue to Citizen App</span>
+                <ArrowRight size={16} />
+              </button>
             </div>
+          </SignedIn>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full mt-2 bg-[#204e37] hover:bg-[#183d2b] text-white py-3.5 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75"
-            >
-              {isLoading ? (
-                <span>Signing in...</span>
-              ) : (
-                <>
-                  <span>
-                    {selectedRole === "citizen" && "Open Citizen App"}
-                    {selectedRole === "field" && "Open Field Squad Portal"}
-                    {selectedRole === "supervisor" && "Open Command Center"}
-                  </span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Quick Demo Fill Buttons */}
+          {/* Quick Demo Access for Field Squad / Municipal Supervisor */}
           <div className="border-t border-[#e2ebd8] pt-4 flex flex-col gap-2">
             <span className="text-[10px] font-bold text-[#556b55] uppercase tracking-wider text-center">
-              Quick Role Access (One-Click)
+              Direct Role Demo Access
             </span>
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => handleQuickLogin("citizen")}
-                className="py-2 px-1 text-[11px] font-bold text-[#204e37] bg-[#eef6ec] hover:bg-[#dfeede] rounded-xl transition text-center border border-[#d2e5cf]"
+                onClick={() => router.push("/citizen")}
+                className="py-2.5 px-2 text-xs font-bold text-[#204e37] bg-[#eef6ec] hover:bg-[#dfeede] rounded-xl transition flex flex-col items-center gap-1 border border-[#d2e5cf] cursor-pointer"
               >
-                📱 Citizen
+                <Smartphone size={16} />
+                <span>Citizen</span>
               </button>
               <button
                 type="button"
-                onClick={() => handleQuickLogin("field")}
-                className="py-2 px-1 text-[11px] font-bold text-[#0369a1] bg-[#e0f2fe] hover:bg-[#bae6fd] rounded-xl transition text-center border border-[#bae6fd]"
+                onClick={() => router.push("/field")}
+                className="py-2.5 px-2 text-xs font-bold text-[#0369a1] bg-[#e0f2fe] hover:bg-[#bae6fd] rounded-xl transition flex flex-col items-center gap-1 border border-[#bae6fd] cursor-pointer"
               >
-                👷 Squad #12
+                <HardHat size={16} />
+                <span>Field Squad</span>
               </button>
               <button
                 type="button"
-                onClick={() => handleQuickLogin("supervisor")}
-                className="py-2 px-1 text-[11px] font-bold text-[#1e3a8a] bg-[#ede9fe] hover:bg-[#ddd6fe] rounded-xl transition text-center border border-[#ddd6fe]"
+                onClick={() => router.push("/supervisor")}
+                className="py-2.5 px-2 text-xs font-bold text-[#1e3a8a] bg-[#ede9fe] hover:bg-[#ddd6fe] rounded-xl transition flex flex-col items-center gap-1 border border-[#ddd6fe] cursor-pointer"
               >
-                🏛️ Officer
+                <ShieldCheck size={16} />
+                <span>Officer</span>
               </button>
             </div>
           </div>

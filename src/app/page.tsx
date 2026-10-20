@@ -3,12 +3,13 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
-import { TreePine, ArrowRight, ShieldCheck, HardHat, Smartphone, Sparkles } from "lucide-react";
+import { SignInButton, Show, UserButton, useUser, useAuth } from "@clerk/nextjs";
+import { TreePine, ArrowRight, ShieldCheck, HardHat, Smartphone } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const { user } = useUser();
+  const { isSignedIn, isLoaded } = useAuth();
 
   return (
     <div className="min-h-screen bg-[#f3f7f1] flex flex-col justify-between font-sans text-[#1c241c]">
@@ -32,9 +33,9 @@ export default function LoginPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <SignedIn>
+          <Show when="signed-in">
             <UserButton />
-          </SignedIn>
+          </Show>
           <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-[#4e644e] bg-[#f0f6ed] px-3 py-1.5 rounded-xl border border-[#d8e3d2]">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Swachhata Helpline: 1100</span>
@@ -57,7 +58,7 @@ export default function LoginPage() {
           </div>
 
           {/* Signed Out View - Single Google Sign In Button */}
-          <SignedOut>
+          <Show when="signed-out">
             <div className="flex flex-col gap-3">
               <SignInButton mode="modal" forceRedirectUrl="/citizen">
                 <button
@@ -90,10 +91,10 @@ export default function LoginPage() {
                 Powered by Clerk Auth · Fast 1-tap sign in
               </p>
             </div>
-          </SignedOut>
+          </Show>
 
           {/* Signed In View */}
-          <SignedIn>
+          <Show when="signed-in">
             <div className="flex flex-col items-center gap-4 bg-[#f0f6ed] p-5 rounded-2xl border border-[#d6dfce]">
               <div className="flex items-center gap-3">
                 <UserButton />
@@ -116,9 +117,9 @@ export default function LoginPage() {
                 <ArrowRight size={16} />
               </button>
             </div>
-          </SignedIn>
+          </Show>
 
-          {/* Quick Demo Access for Field Squad / Municipal Supervisor */}
+          {/* Quick Direct Role Access */}
           <div className="border-t border-[#e2ebd8] pt-4 flex flex-col gap-2">
             <span className="text-[10px] font-bold text-[#556b55] uppercase tracking-wider text-center">
               Direct Role Demo Access

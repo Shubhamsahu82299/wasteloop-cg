@@ -262,7 +262,7 @@ export default function CitizenApp({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex flex-col justify-end p-3.5 text-white">
                 <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-300">Swachh Chhattisgarh Mission</span>
-                <p className="text-xs font-semibold leading-tight">Preserving Raipur's heritage & green spaces</p>
+                <p className="text-xs font-semibold leading-tight">Preserving Raipur&apos;s heritage &amp; green spaces</p>
               </div>
             </div>
           </div>
@@ -286,7 +286,7 @@ export default function CitizenApp({
             </div>
 
             <p className="text-xs text-[#526352] -mt-1 leading-relaxed">
-              Tell us what's happening in your area. Add a photo, voice or text.
+              Tell us what&apos;s happening in your area. Add a photo, voice or text.
             </p>
 
             {/* Category 2x3 Grid */}

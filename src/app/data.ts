@@ -166,6 +166,86 @@ export const initialCases: CaseItem[] = [
       { status: "Awaiting Verification", timestamp: "11 Oct, 04:30 PM", completed: true },
       { status: "Resolved", timestamp: "11 Oct, 05:15 PM", completed: true }
     ]
+  },
+  {
+    id: "#DEMO-CG-0001",
+    title: "[DEMO] Collection missed near Bilaspur market",
+    category: "Garbage & Dumping",
+    description: "Demo only: sample report for testing the Chhattisgarh-wide municipal workflow.",
+    location: "Gol Bazar area, Bilaspur, Chhattisgarh",
+    ward: "Demo Ward 01",
+    latitude: 22.0797,
+    longitude: 82.1409,
+    priority: "Medium",
+    status: "Submitted",
+    time: "Demo",
+    createdAt: "Demo sample",
+    photoUrl: "",
+    recommendedDepartment: "Municipal Sanitation Team",
+    timeline: [{ status: "Submitted", timestamp: "Demo sample", completed: true }]
+  },
+  {
+    id: "#DEMO-CG-0002",
+    title: "[DEMO] Drain blockage in Jagdalpur",
+    category: "Drainage Issue",
+    description: "Demo only: sample drain blockage report in Bastar district.",
+    location: "Dharampura, Jagdalpur, Chhattisgarh",
+    ward: "Demo Ward 02",
+    latitude: 19.0748,
+    longitude: 82.008,
+    priority: "High",
+    status: "Under Review",
+    time: "Demo",
+    createdAt: "Demo sample",
+    photoUrl: "",
+    recommendedDepartment: "Drainage & Sewerage Wing",
+    timeline: [
+      { status: "Submitted", timestamp: "Demo sample", completed: true },
+      { status: "Under Review", timestamp: "Demo sample", completed: true }
+    ]
+  },
+  {
+    id: "#DEMO-CG-0003",
+    title: "[DEMO] Overflowing community bin in Korba",
+    category: "Garbage & Dumping",
+    description: "Demo only: sample collection request for testing a separate municipal area.",
+    location: "Transport Nagar, Korba, Chhattisgarh",
+    ward: "Demo Ward 03",
+    latitude: 22.3595,
+    longitude: 82.7501,
+    priority: "Urgent",
+    status: "Assigned",
+    time: "Demo",
+    createdAt: "Demo sample",
+    photoUrl: "",
+    recommendedDepartment: "Korba Sanitation Team",
+    timeline: [
+      { status: "Submitted", timestamp: "Demo sample", completed: true },
+      { status: "Under Review", timestamp: "Demo sample", completed: true },
+      { status: "Assigned", timestamp: "Demo sample", completed: true }
+    ]
+  },
+  {
+    id: "#DEMO-CG-0004",
+    title: "[DEMO] Green-waste obstruction in Ambikapur",
+    category: "Trees & Green Spaces",
+    description: "Demo only: sample green-waste report in Surguja district.",
+    location: "Ring Road area, Ambikapur, Chhattisgarh",
+    ward: "Demo Ward 04",
+    latitude: 23.1167,
+    longitude: 83.2,
+    priority: "Low",
+    status: "In Progress",
+    time: "Demo",
+    createdAt: "Demo sample",
+    photoUrl: "",
+    recommendedDepartment: "Horticulture & Parks Division",
+    timeline: [
+      { status: "Submitted", timestamp: "Demo sample", completed: true },
+      { status: "Under Review", timestamp: "Demo sample", completed: true },
+      { status: "Assigned", timestamp: "Demo sample", completed: true },
+      { status: "In Progress", timestamp: "Demo sample", completed: true }
+    ]
   }
 ];
 

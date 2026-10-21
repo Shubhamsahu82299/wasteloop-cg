@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  CITIZEN
+  FIELD_WORKER
+  SUPERVISOR
+  ADMIN
+}
+
+enum CasePriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum CaseStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ASSIGNED
+  IN_PROGRESS
+  AWAITING_VERIFICATION
+  RESOLVED
+  REJECTED
+}
+
+enum EvidenceType {
+  BEFORE
+  AFTER
+  OTHER
+}
+
+model User {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  email       String?
+  name        String?
+  role        UserRole @default(CITIZEN)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reportedComplaints Complaint[]       @relation("ReportedComplaints")
+  events             ComplaintEvent[]  @relation("EventActor")
+  evidence           Evidence[]
+  feedback           CitizenFeedback[]
+  teamMemberships    TeamMember[]
+  adminActions       StaffAdminEvent[] @relation("StaffAdminActor")
+  adminChanges       StaffAdminEvent[] @relation("StaffAdminTarget")
+
+  @@index([role])
+}
+
+model Complaint {
+  id                   String       @id @default(cuid())
+  trackingCode         String       @unique
+  title                String
+  category             String
+  description          String       @db.Text
+  location             String
+  ward                 String?
+  latitude             Float?
+  longitude            Float?
+  priority             CasePriority @default(MEDIUM)
+  status               CaseStatus   @default(SUBMITTED)
+  reporterId           String
+  assignedDepartmentId String?
+  assignedTeamId       String?
+  possibleCause        String?      @db.Text
+  recommendedAction    String?      @db.Text
+  slaDueAt             DateTime?
+  slaEscalatedAt       DateTime?
+  resolvedAt           DateTime?
+  wasteCollectedKg     Float?
+  notes                String?      @db.Text
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  reporter           User             @relation("ReportedComplaints", fields: [reporterId], references: [id], onDelete: Restrict)
+  assignedDepartment Department?      @relation(fields: [assignedDepartmentId], references: [id], onDelete: SetNull)
+  assignedTeam       Team?            @relation(fields: [assignedTeamId], references: [id], onDelete: SetNull)
+  wardRecord         Ward?            @relation(fields: [wardId], references: [id], onDelete: SetNull)
+  wardId             String?
+  events             ComplaintEvent[]
+  evidence           Evidence[]
+  feedback           CitizenFeedback?
+
+  @@index([reporterId, createdAt])
+  @@index([status, priority, createdAt])
+  @@index([slaDueAt, slaEscalatedAt])
+  @@index([assignedTeamId, status])
+  @@index([wardId, status])
+}
+
+model ComplaintEvent {
+  id          String     @id @default(cuid())
+  complaintId String
+  actorId     String?
+  status      CaseStatus
+  note        String?    @db.Text
+  createdAt   DateTime   @default(now())
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  actor     User?     @relation("EventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([complaintId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model Evidence {
+  id           String       @id @default(cuid())
+  complaintId  String
+  uploadedById String?
+  type         EvidenceType @default(OTHER)
+  objectKey    String
+  mimeType     String?
+  createdAt    DateTime     @default(now())
+
+  complaint  Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  uploadedBy User?     @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([complaintId, type])
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teams      Team[]
+  complaints Complaint[]
+}
+
+model Team {
+  id           String   @id @default(cuid())
+  name         String
+  departmentId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department Department   @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  complaints Complaint[]
+  members    TeamMember[]
+
+  @@unique([departmentId, name])
+  @@index([departmentId])
+}
+
+model TeamMember {
+  userId    String
+  teamId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([userId, teamId])
+  @@index([teamId])
+}
+
+model Ward {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  number    Int?     @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  complaints Complaint[]
+}
+
+model CitizenFeedback {
+  id          String   @id @default(cuid())
+  complaintId String   @unique
+  userId      String
+  resolved    Boolean
+  comment     String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+}
+
+model ApiRateLimitBucket {
+  key             String   @id
+  windowStartedAt DateTime
+  requestCount    Int
+  updatedAt       DateTime @updatedAt
+}
+
+model StaffAdminEvent {
+  id        String   @id @default(cuid())
+  actorId   String
+  targetId  String?
+  action    String
+  details   Json?
+  createdAt DateTime @default(now())
+
+  actor  User  @relation("StaffAdminActor", fields: [actorId], references: [id], onDelete: Restrict)
+  target User? @relation("StaffAdminTarget", fields: [targetId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([targetId, createdAt])
+}

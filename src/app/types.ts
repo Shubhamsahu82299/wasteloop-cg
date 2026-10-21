@@ -24,6 +24,11 @@ export interface CaseItem {
   eta?: string;
   possibleCause?: string;
   recommendedDepartment?: string;
+  assignedTeamId?: string;
+  slaDueAt?: string | null;
+  slaOverdue?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
   suggestedAction?: string;
   steps?: string[];
   wasteCollectedKg?: number;

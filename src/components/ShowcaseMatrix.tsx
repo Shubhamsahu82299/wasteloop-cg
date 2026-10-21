@@ -12,7 +12,7 @@ interface ShowcaseMatrixProps {
   cases: CaseItem[];
   activeCase: CaseItem;
   setActiveCaseId: (id: string) => void;
-  onNavigateToScreen: (mode: AppMode, screen?: any) => void;
+  onNavigateToScreen: (mode: AppMode, screen?: CitizenScreen | FieldScreen) => void;
   onSubmitNewCase: (newCase: Partial<CaseItem>) => void;
   onFeedbackSubmit: (caseId: string, resolved: boolean, comment: string) => void;
   onCompleteTask: (taskId: string, wasteKg: number, notes: string) => void;

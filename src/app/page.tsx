@@ -150,6 +150,13 @@ export default function LoginPage() {
                 <span>Officer</span>
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => router.push("/admin")}
+              className="mt-1 self-center text-xs font-semibold text-[#477254] underline underline-offset-2 hover:text-[#143826]"
+            >
+              Staff administration (administrator access required)
+            </button>
           </div>
         </div>
       </main>

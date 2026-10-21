@@ -97,16 +97,16 @@ export default function FieldApp({
 
             {/* Filter Pills */}
             <div className="flex gap-2">
-              {[
+              {([
                 { label: "All (5)", key: "All" },
                 { label: "In Progress (2)", key: "In Progress" },
                 { label: "Completed", key: "Completed" },
-              ].map((tab) => {
+              ] as const).map((tab) => {
                 const isActive = filterTab === tab.key;
                 return (
                   <button
                     key={tab.key}
-                    onClick={() => setFilterTab(tab.key as any)}
+                    onClick={() => setFilterTab(tab.key)}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
                       isActive
                         ? "bg-[#204e37] text-white shadow-xs"

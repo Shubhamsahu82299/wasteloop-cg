@@ -23,6 +23,7 @@ import {
   Clock,
   CircleAlert
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { CaseItem, MunicipalTab } from "../app/types";
 
 interface MunicipalDashboardProps {
@@ -46,7 +47,7 @@ export default function MunicipalDashboard({
   const inProgressCount = 32;
   const resolvedCount = 74;
 
-  const sidebarLinks: { label: MunicipalTab; icon: any }[] = [
+  const sidebarLinks: { label: MunicipalTab; icon: LucideIcon }[] = [
     { label: "Overview", icon: LayoutDashboard },
     { label: "Complaints", icon: Flag },
     { label: "Map", icon: MapPin },

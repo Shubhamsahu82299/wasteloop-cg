@@ -1,12 +1,11 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   TreePine,
   Search,
-  Bell,
   LayoutDashboard,
   Flag,
   MapPin,
@@ -15,46 +14,112 @@ import {
   Flame,
   FileBarChart,
   Settings,
-  Calendar,
-  ArrowUpRight,
-  ArrowDownRight,
   CheckCircle2,
-  ChevronLeft,
   X,
   Sparkles,
-  Building2,
-  Clock,
-  ShieldCheck,
-  RotateCcw,
-  Smartphone,
-  HardHat,
-  Monitor,
   LogOut
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { CaseItem, CaseStatus, MunicipalTab } from "../types";
+import type { Priority } from "../types";
 import { useWasteLoop } from "../../context/WasteLoopContext";
+import { StaffComplaintRecord, toStaffCase } from "@/lib/complaint-view";
 
 export default function SupervisorPortalPage() {
-  const {
-    cases,
-    activeCaseId,
-    setActiveCaseId,
-    updateCaseStatus,
-    resetDemoData,
-    toast
-  } = useWasteLoop();
+  const { toast, showToast } = useWasteLoop();
 
+  const [staffCases, setStaffCases] = useState<CaseItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [savingCase, setSavingCase] = useState(false);
+  const [teams, setTeams] = useState<{ id: string; name: string; department: { id: string; name: string } }[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [selectedPriority, setSelectedPriority] = useState<Priority>("Medium");
   const [activeTab, setActiveTab] = useState<MunicipalTab>("Overview");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMapPin, setSelectedMapPin] = useState<string | null>(activeCaseId);
+  const [selectedMapPin, setSelectedMapPin] = useState<string | null>(null);
   const [selectedDrawerCase, setSelectedDrawerCase] = useState<CaseItem | null>(null);
 
-  const totalCount = cases.length + 119;
-  const pendingCount = cases.filter((c) => c.status === "Submitted" || c.status === "Under Review").length + 15;
-  const inProgressCount = cases.filter((c) => c.status === "In Progress" || c.status === "Assigned").length + 29;
-  const resolvedCount = cases.filter((c) => c.status === "Resolved").length + 73;
+  const loadStaffCases = async () => {
+    const response = await fetch("/api/staff/complaints", { cache: "no-store" });
+    const result = (await response.json()) as { complaints?: StaffComplaintRecord[]; error?: string };
+    if (!response.ok) throw new Error(result.error || "Unable to load municipal complaints.");
+    const loaded = (result.complaints ?? []).map(toStaffCase);
+    setStaffCases(loaded);
+    return loaded;
+  };
 
-  const sidebarLinks: { label: MunicipalTab; icon: any }[] = [
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/staff/complaints", { cache: "no-store" });
+        const result = (await response.json()) as { complaints?: StaffComplaintRecord[]; error?: string };
+        if (!response.ok) throw new Error(result.error || "Unable to load municipal complaints.");
+        if (!cancelled) setStaffCases((result.complaints ?? []).map(toStaffCase));
+
+        const teamsResponse = await fetch("/api/staff/teams", { cache: "no-store" });
+        const teamsResult = (await teamsResponse.json()) as {
+          teams?: { id: string; name: string; department: { id: string; name: string } }[];
+          error?: string;
+        };
+        if (!teamsResponse.ok) throw new Error(teamsResult.error || "Unable to load field teams.");
+        if (!cancelled) setTeams(teamsResult.teams ?? []);
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(error instanceof Error ? error.message : "Unable to load municipal complaints.");
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const updateComplaint = async (
+    complaint: CaseItem,
+    status: CaseStatus,
+    note: string,
+    teamId?: string,
+    priority?: Priority,
+  ) => {
+    setSavingCase(true);
+    try {
+      const response = await fetch(
+        `/api/staff/complaints/${encodeURIComponent(complaint.id.replace(/^#/, ""))}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: status.toUpperCase().replaceAll(" ", "_"),
+            note,
+            ...(teamId ? { assignedTeamId: teamId } : {}),
+            ...(priority ? { priority: priority.toUpperCase() } : {}),
+          }),
+        },
+      );
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Unable to update complaint.");
+      const refreshed = await loadStaffCases();
+      const refreshedCase = refreshed.find((item) => item.id === complaint.id) ?? null;
+      setSelectedDrawerCase(refreshedCase);
+      if (refreshedCase) setSelectedPriority(refreshedCase.priority);
+      showToast(`Complaint ${complaint.id} updated.`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to update complaint.");
+    } finally {
+      setSavingCase(false);
+    }
+  };
+
+  const totalCount = staffCases.length;
+  const pendingCount = staffCases.filter((c) => c.status === "Submitted" || c.status === "Under Review").length;
+  const inProgressCount = staffCases.filter((c) => c.status === "In Progress" || c.status === "Assigned").length;
+  const resolvedCount = staffCases.filter((c) => c.status === "Resolved").length;
+
+  const sidebarLinks: { label: MunicipalTab; icon: LucideIcon }[] = [
     { label: "Overview", icon: LayoutDashboard },
     { label: "Complaints", icon: Flag },
     { label: "Map", icon: MapPin },
@@ -65,7 +130,7 @@ export default function SupervisorPortalPage() {
     { label: "Settings", icon: Settings },
   ];
 
-  const filteredCases = cases.filter((c) =>
+  const filteredCases = staffCases.filter((c) =>
     c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -103,11 +168,14 @@ export default function SupervisorPortalPage() {
           </Link>
 
           <button
-            onClick={resetDemoData}
+            onClick={() => {
+              void loadStaffCases().catch((error: unknown) =>
+                showToast(error instanceof Error ? error.message : "Unable to refresh complaints."),
+              );
+            }}
             className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-[#f4f7f2] border border-[#d8e2d4] text-[#556955] hover:bg-[#eaf1e6] transition"
           >
-            <RotateCcw size={12} />
-            <span>Reset Seed</span>
+            <span>Refresh Complaints</span>
           </button>
 
           <div className="flex items-center gap-2 pl-2 border-l border-[#e2e8dd]">
@@ -151,8 +219,8 @@ export default function SupervisorPortalPage() {
           {/* Quick Zone Info */}
           <div className="bg-[#f2f7ed] rounded-xl p-3 border border-[#dbe6d3]">
             <span className="text-[10px] font-bold text-[#204e37] uppercase tracking-wider block">Zone Status</span>
-            <span className="text-xs font-bold text-[#1d3521] block mt-0.5">Raipur District: Normal</span>
-            <span className="text-[10px] text-[#617761] block mt-0.5">70 Wards actively synced</span>
+            <span className="text-xs font-bold text-[#1d3521] block mt-0.5">Raipur Municipal Corporation</span>
+            <span className="text-[10px] text-[#617761] block mt-0.5">{totalCount} complaints loaded</span>
           </div>
         </aside>
 
@@ -167,9 +235,8 @@ export default function SupervisorPortalPage() {
               </span>
             </div>
 
-            <div className="flex items-center gap-2 bg-white border border-[#dce4d7] rounded-xl px-3.5 py-2 shadow-2xs text-xs font-bold text-[#324532]">
-              <Calendar size={15} className="text-[#205136]" />
-              <span>12 Oct 2024 – 18 Oct 2024</span>
+            <div className="bg-white border border-[#dce4d7] rounded-xl px-3.5 py-2 shadow-2xs text-xs font-bold text-[#324532]">
+              {isLoading ? "Loading live data…" : "Live database data"}
             </div>
           </div>
 
@@ -180,10 +247,8 @@ export default function SupervisorPortalPage() {
                 <span className="text-xs font-semibold text-[#667a66]">Total Complaints</span>
                 <div className="text-2xl font-bold text-[#142918] mt-1">{totalCount}</div>
               </div>
-              <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 mt-2">
-                <ArrowUpRight size={14} />
-                <span>+12%</span>
-                <span className="text-[10px] font-medium text-[#7d917d] ml-1">vs last week</span>
+              <div className="flex items-center gap-1 text-[11px] font-medium text-[#7d917d] mt-2">
+                <span>From the live complaint database</span>
               </div>
             </div>
 
@@ -192,10 +257,8 @@ export default function SupervisorPortalPage() {
                 <span className="text-xs font-semibold text-[#667a66]">Pending Review</span>
                 <div className="text-2xl font-bold text-[#142918] mt-1">{pendingCount}</div>
               </div>
-              <div className="flex items-center gap-1 text-[11px] font-bold text-rose-600 mt-2">
-                <ArrowDownRight size={14} />
-                <span>-5%</span>
-                <span className="text-[10px] font-medium text-[#7d917d] ml-1">faster triage</span>
+              <div className="flex items-center gap-1 text-[11px] font-medium text-[#7d917d] mt-2">
+                <span>Submitted or under review</span>
               </div>
             </div>
 
@@ -204,10 +267,8 @@ export default function SupervisorPortalPage() {
                 <span className="text-xs font-semibold text-[#667a66]">In Progress</span>
                 <div className="text-2xl font-bold text-[#142918] mt-1">{inProgressCount}</div>
               </div>
-              <div className="flex items-center gap-1 text-[11px] font-bold text-sky-700 mt-2">
-                <ArrowUpRight size={14} />
-                <span>+20%</span>
-                <span className="text-[10px] font-medium text-[#7d917d] ml-1">field dispatched</span>
+              <div className="flex items-center gap-1 text-[11px] font-medium text-[#7d917d] mt-2">
+                <span>Assigned or active with field teams</span>
               </div>
             </div>
 
@@ -216,10 +277,8 @@ export default function SupervisorPortalPage() {
                 <span className="text-xs font-semibold text-[#667a66]">Resolved</span>
                 <div className="text-2xl font-bold text-[#142918] mt-1">{resolvedCount}</div>
               </div>
-              <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 mt-2">
-                <ArrowUpRight size={14} />
-                <span>+18%</span>
-                <span className="text-[10px] font-medium text-[#7d917d] ml-1">verified closed</span>
+              <div className="flex items-center gap-1 text-[11px] font-medium text-[#7d917d] mt-2">
+                <span>Citizen-confirmed or staff-verified</span>
               </div>
             </div>
           </div>
@@ -229,11 +288,11 @@ export default function SupervisorPortalPage() {
             {/* Left: Complaint Map */}
             <div className="lg:col-span-7 bg-white border border-[#dce5d6] rounded-2xl p-5 shadow-2xs flex flex-col">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold text-[#1b3420]">Complaint Map</span>
-                <span className="text-[11px] font-medium text-[#647964]">Raipur Urban District</span>
+                <span className="text-sm font-bold text-[#1b3420]">Complaint Locations</span>
+                <span className="text-[11px] font-medium text-[#647964]">GPS coordinates reported by citizens</span>
               </div>
 
-              {/* Styled Interactive SVG Map */}
+              {/* Coordinate plot is illustrative and not a street map. */}
               <div className="relative rounded-xl overflow-hidden border border-[#d3ded0] bg-[#e8efe4] h-[350px] flex items-center justify-center">
                 <svg className="w-full h-full" viewBox="0 0 500 350" preserveAspectRatio="none">
                   {/* Water Body (Telibandha Lake) */}
@@ -243,10 +302,6 @@ export default function SupervisorPortalPage() {
                     stroke="#b4d6cb"
                     strokeWidth="1.5"
                   />
-                  <text x="345" y="125" fill="#4d7c6d" fontSize="9" fontWeight="bold">
-                    Telibandha Lake
-                  </text>
-
                   {/* Main Roads */}
                   <line x1="10" y1="175" x2="490" y2="175" stroke="#ffffff" strokeWidth="6" strokeLinecap="round" />
                   <line x1="10" y1="175" x2="490" y2="175" stroke="#cfded0" strokeWidth="1" strokeDasharray="4 4" />
@@ -261,76 +316,56 @@ export default function SupervisorPortalPage() {
                     Raipur
                   </text>
 
-                  <text x="90" y="230" fill="#607760" fontSize="9" fontWeight="600">Sundar Nagar</text>
-                  <text x="145" y="90" fill="#607760" fontSize="9" fontWeight="600">Civil Lines</text>
-                  <text x="210" y="70" fill="#607760" fontSize="9" fontWeight="600">Shankar Nagar</text>
-                  <text x="60" y="80" fill="#607760" fontSize="9" fontWeight="600">Kota Road</text>
                 </svg>
 
-                {/* Pins */}
-                <button
-                  onClick={() => setSelectedMapPin("#WL-2024-0187")}
-                  className="absolute top-[200px] left-[110px] -translate-x-1/2 -translate-y-1/2 z-10 hover:scale-125 transition"
-                  title="Sundar Nagar (High)"
-                >
-                  <div className="w-5 h-5 rounded-full bg-rose-600 border-2 border-white flex items-center justify-center text-white shadow-md">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full" />
-                  </div>
-                </button>
+                {staffCases.filter((item) => item.latitude !== null && item.longitude !== null).map((item) => {
+                  const left = Math.min(95, Math.max(5, ((item.longitude! - 81.4) / 0.5) * 100));
+                  const top = Math.min(90, Math.max(10, ((21.45 - item.latitude!) / 0.5) * 100));
+                  const color =
+                    item.priority === "Urgent" || item.priority === "High"
+                      ? "bg-rose-600"
+                      : item.priority === "Medium"
+                        ? "bg-amber-500"
+                        : "bg-emerald-600";
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setSelectedMapPin(item.id)}
+                      style={{ left: `${left}%`, top: `${top}%` }}
+                      className="absolute -translate-x-1/2 -translate-y-1/2 z-10 hover:scale-125 transition"
+                      title={`${item.location} (${item.priority})`}
+                    >
+                      <span className={`block w-5 h-5 rounded-full ${color} border-2 border-white shadow-md`} />
+                    </button>
+                  );
+                })}
 
-                <button
-                  onClick={() => setSelectedMapPin("#WL-2024-0185")}
-                  className="absolute top-[110px] left-[170px] -translate-x-1/2 -translate-y-1/2 z-10 hover:scale-125 transition"
-                  title="Civil Lines (Medium)"
-                >
-                  <div className="w-5 h-5 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-white shadow-md">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full" />
+                {!staffCases.some((item) => item.latitude !== null && item.longitude !== null) && (
+                  <div className="absolute inset-0 flex items-center justify-center text-xs text-[#556955]">
+                    No complaint coordinates available to map.
                   </div>
-                </button>
-
-                <button
-                  onClick={() => setSelectedMapPin("#WL-2024-0180")}
-                  className="absolute top-[90px] left-[240px] -translate-x-1/2 -translate-y-1/2 z-10 hover:scale-125 transition"
-                  title="Shankar Nagar (Medium)"
-                >
-                  <div className="w-5 h-5 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-white shadow-md">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full" />
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setSelectedMapPin("#WL-2024-0175")}
-                  className="absolute top-[100px] left-[70px] -translate-x-1/2 -translate-y-1/2 z-10 hover:scale-125 transition"
-                  title="Kota Road (Urgent)"
-                >
-                  <div className="w-5 h-5 rounded-full bg-rose-700 border-2 border-white flex items-center justify-center text-white shadow-md animate-pulse">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full" />
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setSelectedMapPin("#WL-2024-0170")}
-                  className="absolute top-[240px] left-[320px] -translate-x-1/2 -translate-y-1/2 z-10 hover:scale-125 transition"
-                  title="Shankar Nagar Resolved"
-                >
-                  <div className="w-5 h-5 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center text-white shadow-md">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full" />
-                  </div>
-                </button>
+                )}
 
                 {selectedMapPin && (
                   <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-xs p-3 rounded-xl border border-[#d2dfce] shadow-md max-w-xs text-left z-20">
                     <span className="text-[10px] font-mono font-bold text-[#204e37] block">{selectedMapPin}</span>
                     <strong className="text-xs text-[#1e2f1e] block truncate">
-                      {cases.find((c) => c.id === selectedMapPin)?.title}
+                      {staffCases.find((c) => c.id === selectedMapPin)?.title}
                     </strong>
                     <span className="text-[10px] text-[#556955] block">
-                      {cases.find((c) => c.id === selectedMapPin)?.location}
+                      {staffCases.find((c) => c.id === selectedMapPin)?.location}
+                    </span>
+                    <span className="text-[10px] text-[#556955] block">
+                      {staffCases.find((c) => c.id === selectedMapPin)?.latitude ?? "—"}, {staffCases.find((c) => c.id === selectedMapPin)?.longitude ?? "—"}
                     </span>
                     <button
                       onClick={() => {
-                        const target = cases.find((c) => c.id === selectedMapPin);
-                        if (target) setSelectedDrawerCase(target);
+                        const target = staffCases.find((c) => c.id === selectedMapPin);
+                        if (target) {
+                          setSelectedTeamId(target.assignedTeamId ?? "");
+                          setSelectedPriority(target.priority);
+                          setSelectedDrawerCase(target);
+                        }
                       }}
                       className="text-[10px] font-bold text-[#204e37] hover:underline mt-1.5 block"
                     >
@@ -356,9 +391,7 @@ export default function SupervisorPortalPage() {
                     Low
                   </span>
                 </div>
-                <span className="text-[11px] font-bold text-[#205136]">
-                  Active Area: Raipur Ward 12
-                </span>
+                <span className="text-[11px] font-bold text-[#205136]">Illustrative coordinate plot, not a navigable street map</span>
               </div>
             </div>
 
@@ -367,7 +400,19 @@ export default function SupervisorPortalPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-bold text-[#1b3420]">Recent Complaints</span>
-                  <span className="text-xs text-[#697d69] font-medium">{filteredCases.length} records</span>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 rounded-lg border border-[#dce4d7] px-2 py-1 text-[#697d69]">
+                      <Search size={13} />
+                      <input
+                        aria-label="Search complaints"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        placeholder="Search"
+                        className="w-24 bg-transparent text-xs outline-none"
+                      />
+                    </label>
+                    <span className="text-xs text-[#697d69] font-medium">{filteredCases.length} records</span>
+                  </div>
                 </div>
 
                 <div className="flex flex-col divide-y divide-[#edf2eb]">
@@ -382,15 +427,21 @@ export default function SupervisorPortalPage() {
                     return (
                       <button
                         key={c.id}
-                        onClick={() => setSelectedDrawerCase(c)}
+                        onClick={() => {
+                          setSelectedTeamId(c.assignedTeamId ?? "");
+                          setSelectedPriority(c.priority);
+                          setSelectedDrawerCase(c);
+                        }}
                         className="py-3 px-1 flex items-center justify-between text-left hover:bg-[#f6f9f3] rounded-xl transition group"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={c.photoUrl}
-                            alt={c.title}
-                            className="w-12 h-12 rounded-xl object-cover border border-[#d6dfce] shrink-0"
-                          />
+                          {c.photoUrl ? (
+                            <img src={c.photoUrl} alt={c.title} className="w-12 h-12 rounded-xl object-cover border border-[#d6dfce] shrink-0" />
+                          ) : (
+                            <span className="w-12 h-12 rounded-xl bg-[#f0f5ee] border border-[#d6dfce] shrink-0 flex items-center justify-center text-[8px] text-[#556955]">
+                              No photo
+                            </span>
+                          )}
                           <div className="min-w-0">
                             <h4 className="text-xs font-bold text-[#1e2f1e] truncate group-hover:text-[#205136]">
                               {c.title}
@@ -414,6 +465,11 @@ export default function SupervisorPortalPage() {
                     );
                   })}
                 </div>
+                {isLoading && <p className="py-4 text-xs text-[#556955]">Loading complaints…</p>}
+                {loadError && <p role="alert" className="py-4 text-xs text-rose-700">{loadError}</p>}
+                {!isLoading && !loadError && filteredCases.length === 0 && (
+                  <p className="py-4 text-xs text-[#556955]">No complaints match this search.</p>
+                )}
               </div>
 
               {/* Status Info Footer */}
@@ -456,13 +512,21 @@ export default function SupervisorPortalPage() {
                 <span className="text-xs font-bold text-[#203420]">Photo Evidence</span>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="relative rounded-xl overflow-hidden border border-[#d4ded0] h-36">
-                    <img src={selectedDrawerCase.photoUrl} alt="Before" className="w-full h-full object-cover" />
+                    {selectedDrawerCase.photoUrl ? (
+                      <img src={selectedDrawerCase.photoUrl} alt="Before" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-[#556955]">No before photo</div>
+                    )}
                     <span className="absolute bottom-1.5 left-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
                       Reported (Before)
                     </span>
                   </div>
                   <div className="relative rounded-xl overflow-hidden border border-[#d4ded0] h-36">
-                    <img src={selectedDrawerCase.afterPhotoUrl || "/cleaned_street.jpg"} alt="After" className="w-full h-full object-cover" />
+                    {selectedDrawerCase.afterPhotoUrl ? (
+                      <img src={selectedDrawerCase.afterPhotoUrl} alt="After" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-[#556955]">No after photo</div>
+                    )}
                     <span className="absolute bottom-1.5 left-1.5 bg-[#205136] text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
                       Resolved (After)
                     </span>
@@ -483,39 +547,125 @@ export default function SupervisorPortalPage() {
                   <span>Assigned: <strong>{selectedDrawerCase.recommendedDepartment || "Sanitation Squad"}</strong></span>
                   <span>Priority: <strong className="text-rose-700">{selectedDrawerCase.priority}</strong></span>
                 </div>
+                {selectedDrawerCase.slaDueAt && (
+                  <div className="text-[11px] text-[#4d634d]">
+                    SLA deadline:{" "}
+                    <strong
+                      className={selectedDrawerCase.slaOverdue ? "text-rose-700" : "text-[#203420]"}
+                    >
+                      {new Date(selectedDrawerCase.slaDueAt).toLocaleString("en-IN")}
+                      {selectedDrawerCase.slaOverdue ? " (overdue)" : ""}
+                    </strong>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-[#e2e9de] p-4">
+                <span className="text-xs font-bold text-[#203420]">Status history</span>
+                {selectedDrawerCase.timeline.length ? (
+                  <ol className="mt-2 flex flex-col gap-2">
+                    {selectedDrawerCase.timeline.map((event, index) => (
+                      <li key={`${event.status}-${index}`} className="text-[11px] text-[#556955]">
+                        <strong className="text-[#203420]">{event.status}</strong>
+                        <span> · {event.timestamp}</span>
+                        {event.subtext && <span className="block">{event.subtext}</span>}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="mt-2 text-[11px] text-[#556955]">No status updates recorded.</p>
+                )}
               </div>
 
               {/* Supervisor Actions */}
               <div className="flex flex-col gap-2 pt-2">
                 <span className="text-xs font-bold text-[#203420]">Supervisor Actions</span>
+                <label className="text-xs text-[#556955]" htmlFor="complaint-priority">Operational priority</label>
+                <select
+                  id="complaint-priority"
+                  value={selectedPriority}
+                  onChange={(event) => {
+                    const priority = (["Urgent", "High", "Medium", "Low"] as const).find(
+                      (value) => value === event.target.value,
+                    );
+                    if (priority) setSelectedPriority(priority);
+                  }}
+                  className="w-full rounded-xl border border-[#d5dfcf] bg-white p-3 text-xs"
+                >
+                  {(["Urgent", "High", "Medium", "Low"] as const).map((priority) => (
+                    <option key={priority} value={priority}>{priority}</option>
+                  ))}
+                </select>
 
-                {selectedDrawerCase.status !== "Resolved" ? (
+                {selectedDrawerCase.status === "Submitted" && (
                   <button
-                    onClick={() => {
-                      updateCaseStatus(selectedDrawerCase.id, "Resolved", "Approved by Municipal Supervisor");
-                      setSelectedDrawerCase({ ...selectedDrawerCase, status: "Resolved" });
-                    }}
-                    className="w-full bg-[#204e37] hover:bg-[#183d2b] text-white py-3 rounded-xl font-bold text-xs shadow-md transition flex items-center justify-center gap-2"
+                    disabled={savingCase}
+                    onClick={() => void updateComplaint(selectedDrawerCase, "Under Review", "Complaint accepted for review.", undefined, selectedPriority)}
+                    className="w-full bg-[#204e37] hover:bg-[#183d2b] text-white py-3 rounded-xl font-bold text-xs shadow-md transition disabled:opacity-50"
                   >
-                    <CheckCircle2 size={16} />
-                    <span>Approve Resolution & Archive Case</span>
+                    Move to review
                   </button>
-                ) : (
+                )}
+
+                {selectedDrawerCase.status === "Under Review" && (
+                  <>
+                    <label className="text-xs text-[#556955]" htmlFor="assigned-team">Assign field team</label>
+                    <select
+                      id="assigned-team"
+                      value={selectedTeamId}
+                      onChange={(event) => setSelectedTeamId(event.target.value)}
+                      className="w-full rounded-xl border border-[#d5dfcf] bg-white p-3 text-xs"
+                    >
+                      <option value="">Select a team</option>
+                      {teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.department.name} · {team.name}
+                        </option>
+                      ))}
+                    </select>
+                    {teams.length === 0 && (
+                      <p className="text-xs text-amber-800">
+                        No teams configured. Create a department and team in Prisma Studio, then assign field-worker membership.
+                      </p>
+                    )}
+                    <button
+                      disabled={savingCase || !selectedTeamId}
+                      onClick={() => void updateComplaint(selectedDrawerCase, "Assigned", "Assigned to field team.", selectedTeamId, selectedPriority)}
+                      className="w-full bg-[#204e37] hover:bg-[#183d2b] text-white py-3 rounded-xl font-bold text-xs shadow-md transition disabled:opacity-50"
+                    >
+                      Assign complaint
+                    </button>
+                  </>
+                )}
+
+                {selectedDrawerCase.status === "Awaiting Verification" && (
+                  <>
+                    <button
+                      disabled={savingCase}
+                      onClick={() => void updateComplaint(selectedDrawerCase, "Resolved", "Approved by municipal supervisor.", undefined, selectedPriority)}
+                      className="w-full bg-[#204e37] hover:bg-[#183d2b] text-white py-3 rounded-xl font-bold text-xs shadow-md transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle2 size={16} />
+                      <span>Approve resolution</span>
+                    </button>
+                    <button
+                      disabled={savingCase}
+                      onClick={() => void updateComplaint(selectedDrawerCase, "In Progress", "Reinspection requested by supervisor.", undefined, selectedPriority)}
+                      className="w-full bg-white border border-[#d5dfcf] hover:bg-[#f6f9f3] text-[#2b412b] py-2.5 rounded-xl font-bold text-xs transition disabled:opacity-50"
+                    >
+                      Request reinspection
+                    </button>
+                  </>
+                )}
+
+                {selectedDrawerCase.status === "Resolved" && (
                   <div className="p-3 rounded-xl bg-[#dcfce7] border border-[#bbf7d0] text-[#15803d] text-xs font-bold flex items-center gap-2">
                     <CheckCircle2 size={16} />
                     <span>Case is marked as Resolved & Verified.</span>
                   </div>
                 )}
 
-                <button
-                  onClick={() => {
-                    updateCaseStatus(selectedDrawerCase.id, "In Progress", "Dispatched to alternate squad");
-                    setSelectedDrawerCase({ ...selectedDrawerCase, status: "In Progress" });
-                  }}
-                  className="w-full bg-white border border-[#d5dfcf] hover:bg-[#f6f9f3] text-[#2b412b] py-2.5 rounded-xl font-bold text-xs transition"
-                >
-                  Dispatch Alternate Field Squad
-                </button>
+                {savingCase && <p className="text-xs text-[#556955]">Saving update…</p>}
               </div>
             </div>
           </div>

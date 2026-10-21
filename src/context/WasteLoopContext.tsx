@@ -29,17 +29,21 @@ export function WasteLoopProvider({ children }: { children: React.ReactNode }) {
 
   // Rehydrate from localStorage
   useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setCases(parsed);
+          timeout = setTimeout(() => setCases(parsed), 0);
         }
       }
     } catch {
       // Ignore storage errors
     }
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
   }, []);
 
   const showToast = (msg: string) => {
